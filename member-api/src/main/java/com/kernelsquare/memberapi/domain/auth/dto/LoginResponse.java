@@ -1,10 +1,11 @@
 package com.kernelsquare.memberapi.domain.auth.dto;
 
+
+import com.kernelsquare.core.util.ImageUtils;
 import com.kernelsquare.core.type.AuthorityType;
 import com.kernelsquare.domainmysql.domain.authority.entity.Authority;
 import com.kernelsquare.domainmysql.domain.member.entity.Member;
 import com.kernelsquare.domainmysql.domain.member_authority.entity.MemberAuthority;
-import com.kernelsquare.memberapi.domain.image.utils.ImageUtils;
 import lombok.Builder;
 
 import java.util.List;

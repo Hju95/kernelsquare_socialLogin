@@ -1,4 +1,32 @@
 spring:
+  profiles:
+    active: local
+    group:
+      local: common, local-db
+      prod1: common, prod-db, prod1-server
+      prod2: common, prod-db, prod2-server
+
+server:
+  env: develop
+  port: 8501
+
+dbInfo: rds
+
+serverName: kernelsquare-develop
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: common
+
+  # file upload max size (파일 업로드 크기 설정)
+  servlet:
+    multipart:
+      max-file-size: 3MB
+      max-request-size: 3MB
+
   datasource:
     url: ${LOCAL_DB_URL}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -12,12 +40,11 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        show_sql: true
 
     database: mysql
 
     database-platform: org.hibernate.dialect.MySQL8Dialect
-
-  #    show-sql: true
 
   jackson:
     property-naming-strategy: SNAKE_CASE
@@ -27,16 +54,11 @@ spring:
       fail-on-empty-beans: false
   # <====
 
-  # file upload max size (파일 업로드 크기 설정)
-  servlet:
-    multipart:
-      max-file-size: 3MB
-      max-request-size: 3MB
-
-
   redis:
     serialization:
       class-property-type-name: RefreshToken.class
+    host: ${REDIS_HOST}
+    port: ${REDIS_PORT}
 
   data:
     mongodb:
@@ -53,8 +75,8 @@ spring:
       client:
         registration:
           github:
-            client-id: ${GITHUB_SOCIAL_CLIENT_ID}
-            client-secret: ${GITHUB_SOCIAL_CLIENT_SECRET}
+            client-id: ${SOCIAL_GITHUB_CLIENT_ID}
+            client-secret: ${SOCIAL_GITHUB_CLIENT_SECRET}
             redirect-uri: http://localhost:8501/login/oauth2/code/github
             scope:
               - user:email
@@ -62,6 +84,7 @@ spring:
   flyway:
     enabled: false
     baseline-on-migrate: true
+    out-of-order: true
 
   # ====> 소켓 통신의 임시 화면을 위함, 정식 화면이 생기면 삭제 할 것 !!
   devtools:
@@ -89,18 +112,48 @@ cloud:
       accessKey: ${AWS_ACCESS_KEY}
       secretKey: ${AWS_ACCESS_SECRET}
 
+kafka:
+  url: ${KAFKA_URL}
+
 custom:
   domain:
     image:
       baseUrl: ${BASE_URL}
+
+chatgpt:
+  rest-api-key: ${CHAT_GPT_API_KEY}
+  chat-api-url: https://api.openai.com/v1/chat/completions
 
 management:
   endpoints:
     web:
       exposure:
         include: prometheus, health, info, metrics
-#  observations:
-#    key-values:
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: prod1-server
+
+serverName: kernelsquare-prod1
+
+dbInfo: rds
+
 server:
   port: 8501
-#      application: KS_SingleModule  #태그
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: prod2-server
+
+serverName: kernelsquare-prod2
+
+dbInfo: rds
+
+server:
+  port: 8502

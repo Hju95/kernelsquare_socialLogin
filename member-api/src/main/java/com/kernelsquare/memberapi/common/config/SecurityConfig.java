@@ -3,6 +3,7 @@ package com.kernelsquare.memberapi.common.config;
 import com.kernelsquare.memberapi.common.oauth2.handler.OAuth2LoginFailureHandler;
 import com.kernelsquare.memberapi.common.oauth2.handler.OAuth2LoginSuccessHandler;
 import com.kernelsquare.memberapi.common.oauth2.service.CustomOAuth2MemberService;
+import com.kernelsquare.memberapi.domain.auth.service.TokenProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -13,10 +14,6 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
-import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizedClientManager;
-import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 
@@ -36,9 +33,7 @@ public class SecurityConfig {
 	private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
 	private final OAuth2LoginFailureHandler oAuth2LoginFailureHandler;
 	private final CustomOAuth2MemberService customOAuth2MemberService;
-	private final ClientRegistrationRepository clientRegistrationRepository;
-	private final OAuth2AuthorizedClientRepository oAuth2AuthorizedClientRepository;
-	private final JWTSettingFilter jwtSettingFilter;
+	private final TokenProvider tokenProvider;
 
 	private final String[] permitAllPatterns = new String[] {
 		"/api/v1/auth/check/email",
@@ -47,9 +42,11 @@ public class SecurityConfig {
 		"/api/v1/auth/login",
 		"/actuator",
 		"/actuator/**",
+		"/get-server-information",
+		"/environment",
 
 		// 소켓 통신의 임시 화면을 사용하기 위해 관련 경로는 permitAll
-		"/screen/**",
+		"/chat/**",
 		"/kernel-square/**",
 		"/topic/chat/room",
 		"/app/chat/message",
@@ -61,7 +58,8 @@ public class SecurityConfig {
 
 	private final String[] hasAnyAuthorityPatterns = new String[] {
 		"/api/v1/images",
-		"/api/v1/coffeechat/reservations"
+		"/api/v1/coffeechat/reservations",
+		"/api/v1/alerts/**",
 	};
 
 	private final String[] hasRoleUserPatterns = new String[] {
@@ -72,7 +70,8 @@ public class SecurityConfig {
 		"/api/v1/questions/answers/{answerId}/vote",
 		"/api/v1/coffeechat/reservations/book",
 		"/api/v1/coffeechat/reservations/{reservationId}",
-		"/api/v1/notices/**"
+		"/api/v1/notices/**",
+		"/api/v1/questions/{questionId}/answer-bot"
 	};
 
 	private final String[] hasRoleAdminPatterns = new String[] {
@@ -80,15 +79,11 @@ public class SecurityConfig {
 		"/api/v1/levels/**"
 	};
 
+
 	@Bean
 	public PasswordEncoder passwordEncoder() {
 		return new BCryptPasswordEncoder();
 	}
-
-    @Bean
-    public OAuth2AuthorizedClientManager oAuth2AuthorizedClientManager() {
-        return new DefaultOAuth2AuthorizedClientManager(clientRegistrationRepository, oAuth2AuthorizedClientRepository);
-    }
 
 	//todo : filter 설정 추가하기
 	@Bean
@@ -107,19 +102,25 @@ public class SecurityConfig {
 			.requestMatchers(HttpMethod.GET, "/api/v1/coffeechat/posts/{postId}").permitAll()
 			.requestMatchers(HttpMethod.GET, "/api/v1/hashtags").permitAll()
 			.requestMatchers(HttpMethod.GET, "/api/v1/techs").permitAll()
+                               
 			.requestMatchers(HttpMethod.GET, "/login/oauth2/**").permitAll()
 			.requestMatchers(HttpMethod.GET, "/oauth2/**").permitAll()
 			.requestMatchers(HttpMethod.GET, "/favicon.ico/**").permitAll()
 			// 백엔드 임시 테스트 창
 			.requestMatchers(HttpMethod.GET, "/api/v1/test").permitAll()
 
+			.requestMatchers(HttpMethod.GET, "/api/v1/coding-meetings").permitAll()
+			.requestMatchers(HttpMethod.GET, "/api/v1/coding-meetings/{codingMeetingToken}").permitAll()
+			.requestMatchers(HttpMethod.GET, "/api/v1/coding-meeting-comments/{codingMeetingToken}").permitAll()
+
 			// 모든 권한에 대한 접근 허용
 			.requestMatchers(hasAnyAuthorityPatterns).authenticated()
 			.requestMatchers(HttpMethod.GET, "/api/v1/members/{memberId}").authenticated()
 			.requestMatchers(HttpMethod.GET, "/api/v1/coffeechat/rooms/{roomKey}").authenticated()
+			.requestMatchers(HttpMethod.POST, "/api/v1/coffeechat/request/{memberId}").authenticated()
 
 			// ROLE_USER 권한 필요
-			.requestMatchers(hasRoleUserPatterns).permitAll()
+			.requestMatchers(hasRoleUserPatterns).hasRole("USER")
 			.requestMatchers(HttpMethod.DELETE, "/api/v1/members/{memberId}").hasRole("USER")
 			.requestMatchers(HttpMethod.PUT, "/api/v1/members/{memberId}/profile").hasRole("USER")
 			.requestMatchers(HttpMethod.PUT, "/api/v1/members/{memberId}/password").hasRole("USER")
@@ -128,6 +129,12 @@ public class SecurityConfig {
 			.requestMatchers(HttpMethod.PUT, "/api/v1/questions/{questionId}").hasRole("USER")
 			.requestMatchers(HttpMethod.DELETE, "/api/v1/questions/{questionId}").hasRole("USER")
 			.requestMatchers(HttpMethod.POST, "/api/v1/questions/{questionId}/answers").hasRole("USER")
+			.requestMatchers(HttpMethod.POST, "/api/v1/coding-meetings").hasRole("USER")
+			.requestMatchers(HttpMethod.PUT, "/api/v1/coding-meetings/**").hasRole("USER")
+			.requestMatchers(HttpMethod.DELETE, "/api/v1/coding-meetings/{codingMeetingToken}").hasRole("USER")
+			.requestMatchers(HttpMethod.POST, "/api/v1/coding-meeting-comments").hasRole("USER")
+			.requestMatchers(HttpMethod.PUT, "/api/v1/coding-meeting-comments/{codingMeetingCommentToken}").hasRole("USER")
+			.requestMatchers(HttpMethod.DELETE, "/api/v1/coding-meeting-comments/{codingMeetingCommentToken}").hasRole("USER")
 
 			// ROLE_MENTOR 권한 필요
 			.requestMatchers(HttpMethod.POST, "/api/v1/coffeechat/posts").hasRole("MENTOR")
@@ -144,7 +151,7 @@ public class SecurityConfig {
 			.requestMatchers(HttpMethod.DELETE, "/api/v1/hashtags/{hashtagId}").hasRole("ADMIN")
 		);
 
-		http.addFilterBefore(jwtSettingFilter, BasicAuthenticationFilter.class);
+		http.addFilterBefore(new JWTSettingFilter(tokenProvider), BasicAuthenticationFilter.class);
 
 		http.exceptionHandling(exceptionHandlingConfigurer -> exceptionHandlingConfigurer
 			.authenticationEntryPoint(jwtAuthenticationEntryPoint)
